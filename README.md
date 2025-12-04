@@ -1,6 +1,6 @@
 # Tree AR-HMM for Cell Lineages
 
-This repository implements a **Tree Autoregressive Hidden Markov Model (Tree AR-HMM)** in **Dynamax**. This was inspired by the problem of modeling cell lineages, where each biological cell follows a Markovian latent state sequence with AR(1) Gaussian emissions, and division events create a branching tree structure. It accommodates spontaneous cell birth (e.g. coming into frame at time $t$) as well as cell death. 
+This repository implements a **Tree Autoregressive Hidden Markov Model (Tree AR-HMM)** in **Dynamax**. This was inspired by the problem of modeling cell lineages. We assume that each cell follows a Markovian latent state sequence with AR(1) Gaussian emissions. Division events create a branching tree structure. It accommodates spontaneous cell birth (e.g. coming into frame at time $t$) as well as cell death. 
 
 In summary:
 - Each cell (or agent, more generally) has a **latent discrete state** that evolves over time.  
@@ -60,7 +60,7 @@ $$z_{i,t+1} \mid z_{i,t} = k \sim \mathrm{Cat}(\pi_k), \quad t \ge \tilde t+1$$
 
 again with AR(1) emissions as above.
 
-### Joint Likelihood (Sketch)
+### Joint Likelihood 
 
 Let $R$ be the number of roots, and for each root $r$, let $C_{r,t}$ be the set of cells alive at time $t$ in that lineage. For each parent–child pair $(n, c_n)$ at times $(t, t+1)$, the joint likelihood factors as
 
