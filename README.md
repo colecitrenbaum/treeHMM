@@ -35,7 +35,7 @@ For each root cell $r$, alive from $t = 1$ until it divides at time $\tilde t$:
 
 Here, $\{\pi_k\}$ define the standard Markov transition matrix over discrete states.
 
-### Emissions (Shared AR(1) Model)
+### Auto-regressive Emissions 
 
 For any cell $i$ and any time $t$ during its lifetime, we observe a vector $x_{i,t}$.  
 Conditional on the latent state, we use a shared AR(1) emission model:
@@ -63,7 +63,7 @@ $$z_{i,t+1} \mid z_{i,t} = k \sim \mathrm{Cat}(\pi_k), \quad t \ge \tilde t+1$$
 
 again with AR(1) emissions as above.
 
-### Joint Likelihood 
+### Full probabilistic model 
 
 Let $R$ be the number of roots, and for each root $r$, let $C_{r,t}$ be the set of cells alive at time $t$ in that lineage. For each parent–child pair $(n, c_n)$ at times $(t, t+1)$, the joint likelihood factors as
 
@@ -73,7 +73,8 @@ where the transition term $p(z_{c_n, t+1} \mid z_{n,t})$ is given by:
 - the standard transition matrix $P$ for **non-division** (self) transitions;
 - the division transition matrix $\tilde P$ for **division** events.
 
-See the **Derivation** folder for forward–backward details. 
+## Fitting
+Fit using EM-- see the **Derivation** folder for forward–backward details. 
 
 ---
 
