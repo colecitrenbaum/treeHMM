@@ -1,5 +1,7 @@
 # Tree AR-HMM for Cell Lineages
-
+<p align="center">
+  <img src="figs/fig2.png" alt="Tree AR-HMM probabilistic model" width="70%">
+</p>
 This repository implements a **Tree Autoregressive Hidden Markov Model (Tree AR-HMM)** in **Dynamax**. This was inspired by the problem of modeling cell lineages. We assume that each cell follows a Markovian latent state sequence with AR(1) Gaussian emissions. Division events create a branching tree structure. It accommodates spontaneous cell birth (e.g. coming into frame at time $t$) as well as cell death. 
 
 In summary:
@@ -7,13 +9,13 @@ In summary:
 - Emissions are **shared AR(1) dynamics** conditioned on the latent state.  
 - When a cell divides, its daughters’ initial latent states are drawn from a **division-specific transition kernel** that depends on the parent’s latent state at division.
 
-<p align="center">
-  <img src="figs/fig1.png" alt="Tree AR-HMM probabilistic model" width="100%">
-</p>
-
 ---
 
 ## Probabilistic Model
+
+<p align="center">
+  <img src="figs/fig1.png" alt="Tree AR-HMM probabilistic model" width="100%">
+</p>
 
 We index cells by $i$ (e.g. root $r$, daughters $n,m,\dots$) and time by $t$.  
 Each cell has a lifetime interval over which it exists and can persist or divide.
