@@ -36,7 +36,7 @@ tfb = tfp.bijectors
 ## NOTE turning off jit for debugging only
 import jax.debug as dbg
 from jax import config
-config.update("jax_disable_jit", True)
+config.update("jax_disable_jit", False)
 class TreeHMMPosterior(NamedTuple):
     r"""Simple wrapper for properties of an HMM posterior distribution.
 
@@ -109,7 +109,7 @@ class TreeInitialState(StandardHMMInitialState):
             self,
             params: ParamsStandardHMMInitialState,
             props: ParamsStandardHMMInitialState,
-            batch_stats: Float[Array, "batch num_states"],
+            batch_stats: Float[Array, "num_states"],
             m_step_state: Any
     ) -> Tuple[ParamsStandardHMMInitialState, Any]:
         """Perform the M-step of the EM algorithm."""
@@ -117,11 +117,14 @@ class TreeInitialState(StandardHMMInitialState):
             if self.num_states == 1:
                 probs = jnp.array([1.0])
             else:
-                expected_initial_counts = batch_stats.sum(axis=0)
+                expected_initial_counts = batch_stats
                 probs = tfd.Dirichlet(self.initial_probs_concentration + expected_initial_counts).mode()
             params = params._replace(probs=probs)
         return params, m_step_state
-
+@jit
+def _sum_tree_over_batch(stats_batched):
+    # stats_batched is a pytree with leading axis B everywhere
+    return tree_map(lambda x: jnp.sum(x, axis=0), stats_batched)
 
 @partial(jit, static_argnames=["transition_fn", "division_transition_fn"])
 def tree_hmm_filter(
@@ -696,6 +699,8 @@ class tARHMM(LinearAutoregressiveHMM):
             is_new_root_mask, 
             active_mask
         )
+        if self.num_lags == 0:
+            inputs = jnp.zeros_like(inputs)
         return inputs
     #TODO some day 
     def sample(self,
@@ -727,7 +732,7 @@ class tARHMM(LinearAutoregressiveHMM):
         # initial_stats = self.initial_component.collect_suff_stats(params.initial, posterior, inputs)
         #TODO ?? check the collect_suff_stats stuff 
         # initial_stats = self.initial_component.collect_suff_stats(params.initial, posterior, inputs)
-        initial_stats = posterior.initial_probs
+        initial_stats = jnp.nansum(posterior.initial_probs,axis=0)
         transition_stats = self.transition_component.collect_suff_stats(params.transitions, posterior, inputs)
         division_transition_stats = self.division_transition_component.collect_suff_stats(params.division_transitions, posterior, inputs)
         emission_stats = self.emission_component.collect_suff_stats(params.emissions, posterior, emissions, inputs)
@@ -745,13 +750,42 @@ class tARHMM(LinearAutoregressiveHMM):
         batch_transition_stats, batch_division_transition_stats = batch_transitions_stats
         initial_m_step_state, transitions_m_step_state, division_transitions_m_step_state, emissions_m_step_state = m_step_state
 
-        initial_params, initial_m_step_state = self.initial_component.m_step(params.initial, props.initial, jnp.nan_to_num(batch_initial_stats), initial_m_step_state)
+        initial_params, initial_m_step_state = self.initial_component.m_step(params.initial, props.initial, batch_initial_stats, initial_m_step_state)
         transition_params, transitions_m_step_state = self.transition_component.m_step(params.transitions, props.transitions, batch_transition_stats, transitions_m_step_state)
         division_transition_params, division_transitions_m_step_state = self.division_transition_component.m_step(params.division_transitions, props.division_transitions, batch_division_transition_stats, division_transitions_m_step_state)
         emission_params, emissions_m_step_state = self.emission_component.m_step(params.emissions, props.emissions, batch_emission_stats, emissions_m_step_state)
         params = params._replace(initial=initial_params, transitions=transition_params, division_transitions=division_transition_params, emissions=emission_params)
         m_step_state = initial_m_step_state, transitions_m_step_state, division_transitions_m_step_state, emissions_m_step_state
         return params, m_step_state
+
+
+    @jit
+    def e_step_one(self, params, e, u, p, d, a, r):
+        return self.e_step(params, e, u, p, d, a, r)
+
+
+    @jit
+    def sum_tree_over_batch(self, stats_b):
+        return tree_map(lambda x: jnp.sum(x, axis=0), stats_b)
+
+    @jit
+    def batched_e_step(self, params, batch_emissions, batch_inputs, batch_parent_indices, batch_is_division_mask, batch_active_mask, batch_is_new_root_mask):
+        return vmap(self.e_step_one, in_axes=(None, 0,0,0,0,0,0))(params, batch_emissions, batch_inputs, batch_parent_indices, batch_is_division_mask, batch_active_mask, batch_is_new_root_mask)
+    @jit
+    def em_iter(self, params, m_step_state,
+                batch_emissions, batch_inputs,
+                batch_parent_indices, batch_is_division_mask,
+                batch_active_mask, batch_is_new_root_mask):
+        stats_b, lls_b = self.batched_e_step(
+            params,
+            batch_emissions, batch_inputs,
+            batch_parent_indices, batch_is_division_mask,
+            batch_active_mask, batch_is_new_root_mask
+        )
+        batch_stats = self.sum_tree_over_batch(stats_b)
+        params, m_step_state = self.m_step(params, props, batch_stats, m_step_state)
+        return params, m_step_state, jnp.sum(lls_b)
+
 
     def fit_em(
         self,
@@ -790,32 +824,63 @@ class tARHMM(LinearAutoregressiveHMM):
         """
 
         # Make sure the emissions and inputs have batch dimensions
-        #NOTE remove this ? 
-        batch_emissions = ensure_array_has_batch_dim(emissions, self.emission_shape)
-        batch_inputs = ensure_array_has_batch_dim(inputs, self.inputs_shape)
-        # batch_parent_indices = ensure_array_has_batch_dim(parent_indices, parent_indices.shape)
-        # batch_is_division_mask = ensure_array_has_batch_dim(is_division_mask, is_division_mask.shape)
-        # batch_active_mask = ensure_array_has_batch_dim(active_mask, active_mask.shape)
-        # batch_is_new_root_mask = ensure_array_has_batch_dim(is_new_root_mask, is_new_root_mask.shape)
+
+
+        if emissions.ndim == 3:
+            batch_emissions = emissions.reshape(1,*emissions.shape)
+            batch_inputs = inputs.reshape(1,*inputs.shape)
+            batch_parent_indices = parent_indices.reshape(1,*parent_indices.shape)
+            batch_is_division_mask = is_division_mask.reshape(1,*is_division_mask.shape)
+            batch_active_mask = active_mask.reshape(1,*active_mask.shape)
+            batch_is_new_root_mask = is_new_root_mask.reshape(1,*is_new_root_mask.shape)
+        else:
+            batch_emissions = emissions
+            batch_inputs = inputs
+            batch_parent_indices = parent_indices
+            batch_is_division_mask = is_division_mask
+            batch_active_mask = active_mask
+            batch_is_new_root_mask = is_new_root_mask
+
+        def e_step_one(params, e, u, p, d, a, r):
+            # returns (stats, ll) for ONE file
+            return self.e_step(params, e, u, p, d, a, r)
+
+        batched_e_step = jit(
+            vmap(e_step_one, in_axes=(None, 0, 0, 0, 0, 0, 0))
+        )
+
         @jit
-        def em_step(params, m_step_state):
-            """Perform one EM step."""
-            # batch_stats, lls = vmap(partial(self.e_step, params))(batch_emissions, batch_inputs, parent_indices, is_division_mask, active_mask, is_new_root_mask)
-            batch_stats, lls = self.e_step(params, batch_emissions, batch_inputs, parent_indices, is_division_mask, active_mask, is_new_root_mask)
-            lp = self.log_prior(params) + lls.sum()
+        def em_iter(params, m_step_state,
+                    batch_emissions, batch_inputs,
+                    batch_parent_indices, batch_is_division_mask,
+                    batch_active_mask, batch_is_new_root_mask):
+            # E-step per file
+            stats_b, lls_b = batched_e_step(
+                params,
+                batch_emissions, batch_inputs,
+                batch_parent_indices, batch_is_division_mask,
+                batch_active_mask, batch_is_new_root_mask
+            )
+            # Sum sufficient stats across batch/files
+            batch_stats = _sum_tree_over_batch(stats_b)
+
+            # M-step once using summed stats
             params, m_step_state = self.m_step(params, props, batch_stats, m_step_state)
-            if jnp.isnan(params.emissions.weights).any():
-                print("nan in emissions weights")
 
-            # debug.print('e_step: {x}', x=(batch_stats, lls))
-            # debug.print('m_step{y}', y=params)
-            return params, m_step_state, lp
-
+            # Return total marginal ll for logging
+            return params, m_step_state, jnp.sum(lls_b)
+## MAIN LOOP 
         log_probs = []
-        # m_step_state = self.initialize_m_step_state(params, props) # none 
-        m_step_state = (None,None,None,None)
-        pbar = progress_bar(range(num_iters)) if verbose else range(num_iters)
-        for _ in pbar:
-            params, m_step_state, marginal_logprob = em_step(params, m_step_state)
-            log_probs.append(marginal_logprob)
+        m_step_state = (None, None, None, None)
+
+        iters = progress_bar(range(num_iters)) if verbose else range(num_iters)
+        for _ in iters:
+            params, m_step_state, ll = em_iter(
+                params, m_step_state,
+                batch_emissions, batch_inputs,
+                batch_parent_indices, batch_is_division_mask,
+                batch_active_mask, batch_is_new_root_mask
+            )
+            log_probs.append(ll)
+
         return params, jnp.array(log_probs)

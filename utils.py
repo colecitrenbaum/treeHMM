@@ -8,8 +8,8 @@ import matplotlib.pyplot as plt
 
 def generate_tree_hmm_data(
     key,
-    num_timesteps=100,
-    max_cells=256,
+    num_timesteps=60,
+    max_cells=50,
     num_states=3,
     emission_dim=2,
     division_prob=0.05,
