@@ -9,7 +9,7 @@ In summary:
 - Each cell (or agent, more generally) has a **latent discrete state** that evolves over time.  
 - Emissions are **shared AR(1) dynamics** conditioned on the latent state.  
 - When a cell divides, its daughters’ initial latent states are drawn from a **division-specific transition kernel** that depends on the parent’s latent state at division.
-
+(Figure courtesy of Nano Banana Pro)
 ---
 
 ## Probabilistic Model
