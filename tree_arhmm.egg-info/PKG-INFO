@@ -3,16 +3,7 @@ Name: tree-arhmm
 Version: 0.1.0
 Summary: Tree Autoregressive Hidden Markov Model for cell lineages, built on Dynamax.
 Requires-Python: >=3.10
-Requires-Dist: jax
-Requires-Dist: jaxlib
-Requires-Dist: dynamax
-Requires-Dist: tfp-nightly
-Requires-Dist: fastprogress
-Requires-Dist: optax
-Requires-Dist: scikit-learn
-Requires-Dist: jaxtyping
-Requires-Dist: typing-extensions
-Requires-Dist: numpy
+Requires-Dist: dynamax @ git+https://github.com/probml/dynamax.git@main
 Provides-Extra: notebooks
 Requires-Dist: matplotlib; extra == "notebooks"
 Requires-Dist: seaborn; extra == "notebooks"

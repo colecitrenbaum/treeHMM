@@ -1,13 +1,4 @@
-jax
-jaxlib
-dynamax
-tfp-nightly
-fastprogress
-optax
-scikit-learn
-jaxtyping
-typing-extensions
-numpy
+dynamax @ git+https://github.com/probml/dynamax.git@main
 
 [notebooks]
 matplotlib

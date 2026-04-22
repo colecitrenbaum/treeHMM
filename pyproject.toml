@@ -8,16 +8,7 @@ version = "0.1.0"
 description = "Tree Autoregressive Hidden Markov Model for cell lineages, built on Dynamax."
 requires-python = ">= 3.10"
 dependencies = [
-    "jax",
-    "jaxlib",
-    "dynamax",
-    "tfp-nightly",
-    "fastprogress",
-    "optax",
-    "scikit-learn",
-    "jaxtyping",
-    "typing-extensions",
-    "numpy",
+    "dynamax @ git+https://github.com/probml/dynamax.git@main",
 ]
 
 [project.optional-dependencies]
