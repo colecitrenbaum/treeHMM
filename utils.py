@@ -300,3 +300,24 @@ def visualize_lineage(data):
     
     plt.tight_layout()
     plt.show()
+
+
+def make_batch(batch):
+    T_max = max(b["emissions"].shape[0] for b in batch)
+    C_max = max(b["emissions"].shape[1] for b in batch)
+
+    emissions = jnp.stack([pad_to(b["emissions"], T_max, C_max, 0.0) for b in batch], axis=0)  # (B,T,C,D)
+
+    parent_indices = jnp.stack([pad_to(b["parent_indices"], T_max, C_max, 0) for b in batch], axis=0)  # (B,T,C)
+    is_division_mask = jnp.stack([pad_to(b["is_division_mask"], T_max, C_max, False) for b in batch], axis=0)
+    active_mask = jnp.stack([pad_to(b["active_mask"], T_max, C_max, False) for b in batch], axis=0)
+    is_new_root_mask = jnp.stack([pad_to(b["is_new_root_mask"], T_max, C_max, False) for b in batch], axis=0)
+
+    return emissions, parent_indices, is_division_mask, active_mask, is_new_root_mask
+def pad_to(x, T, C, pad_value=0):
+    # x has shape (t, c, ...) or (t, c)
+    t, c = x.shape[:2]
+    pad_t = T - t
+    pad_c = C - c
+    pad_width = [(0, pad_t), (0, pad_c)] + [(0,0)]*(x.ndim - 2)
+    return jnp.pad(x, pad_width, mode="constant", constant_values=pad_value)

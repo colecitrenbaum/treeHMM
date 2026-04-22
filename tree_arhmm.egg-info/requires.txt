@@ -1,0 +1,17 @@
+jax
+jaxlib
+dynamax
+tfp-nightly
+fastprogress
+optax
+scikit-learn
+jaxtyping
+typing-extensions
+numpy
+
+[notebooks]
+matplotlib
+seaborn
+scipy
+jupyter
+pandas
