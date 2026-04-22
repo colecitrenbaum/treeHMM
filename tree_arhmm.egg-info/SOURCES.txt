@@ -1,9 +1,0 @@
-README.md
-pyproject.toml
-models/__init__.py
-models/tarhmm.py
-tree_arhmm.egg-info/PKG-INFO
-tree_arhmm.egg-info/SOURCES.txt
-tree_arhmm.egg-info/dependency_links.txt
-tree_arhmm.egg-info/requires.txt
-tree_arhmm.egg-info/top_level.txt

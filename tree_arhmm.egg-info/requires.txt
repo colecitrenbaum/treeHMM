@@ -1,8 +1,0 @@
-dynamax @ git+https://github.com/probml/dynamax.git@main
-
-[notebooks]
-matplotlib
-seaborn
-scipy
-jupyter
-pandas
